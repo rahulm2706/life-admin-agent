@@ -15,7 +15,7 @@ function Navbar({ onStartDemo, demoRunning }) {
                 <div className="flex items-center gap-3">
                     <span className="text-xl">🤖</span>
                     <span className="font-bold text-white">Life Admin Agent</span>
-                    <span className="text-xs text-white/30 hidden md:inline">Powered by Claude + ReAct</span>
+                    {/* <span className="text-xs text-white/30 hidden md:inline">Powered by Claude + ReAct</span> */}
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -52,6 +52,7 @@ function Navbar({ onStartDemo, demoRunning }) {
                     </NavLink>
                 </div>
 
+                {/* Start Demo button — hidden for project review
                 <button
                     onClick={onStartDemo}
                     disabled={demoRunning}
@@ -62,6 +63,7 @@ function Navbar({ onStartDemo, demoRunning }) {
                         : <Play size={13} fill="currentColor" />}
                     {demoRunning ? 'Running...' : '▶️ Start Demo'}
                 </button>
+                */}
             </div>
         </nav>
     )
