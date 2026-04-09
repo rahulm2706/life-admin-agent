@@ -41,7 +41,9 @@ _sse_queue: asyncio.Queue = asyncio.Queue()
 
 @app.on_event("startup")
 async def startup():
-    create_tables()
+    from models import Base, engine
+    Base.metadata.drop_all(bind=engine)   # wipe all tables
+    create_tables()                        # recreate fresh
     seed_defaults()
 
 

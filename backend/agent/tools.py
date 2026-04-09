@@ -6,36 +6,35 @@ import re
 import httpx
 from datetime import datetime, timedelta
 from typing import Optional
-import anthropic
+from groq import Groq
 
 from agent.memory import query_similar_tasks, upsert_user_preference, get_preferred_notification_hour
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-MODEL = "claude-sonnet-4-20250514"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # ─── Tool 1: parse_email ─────────────────────────────────────────────────────
 
 def parse_email(email_text: str, retry_prompt_suffix: str = "") -> dict:
-    """Use Claude to extract structured tasks from raw email text."""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    """Use Groq (Llama 3.3 70B) to extract structured tasks from raw email text."""
+    if not GROQ_API_KEY:
+        return {"tasks": [], "error": "GROQ_API_KEY is not set in backend/.env"}
+
+    client = Groq(api_key=GROQ_API_KEY)
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
     system_prompt = f"""You are a financial and task extraction assistant. Today's date is {today}.
 Extract ALL actionable tasks from the email below. Return ONLY valid JSON (no markdown fences).
 
 Output format:
-{{
-  "tasks": [
-    {{
-      "task_title": "string",
-      "due_date": "YYYY-MM-DD or null",
-      "amount": float (0 if not mentioned),
-      "category": "bill|deadline|subscription|renewal|reminder",
-      "urgency": "high|medium|low",
-      "confidence": 0.0-1.0
-    }}
-  ]
-}}
+{{"tasks": [{{
+  "task_title": "string",
+  "due_date": "YYYY-MM-DD or null",
+  "amount": 0.0,
+  "category": "bill|deadline|subscription|renewal|reminder",
+  "urgency": "high|medium|low",
+  "confidence": 0.95
+}}]}}
 
 Categories:
 - bill: utility/expense bills to be paid
@@ -47,16 +46,17 @@ Categories:
 {retry_prompt_suffix}"""
 
     try:
-        message = client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
             messages=[
-                {"role": "user", "content": f"Extract tasks from this email:\n\n{email_text}"}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Extract tasks from this email:\n\n{email_text}"},
             ],
-            system=system_prompt,
+            max_tokens=1024,
+            temperature=0.2,
         )
-        raw = message.content[0].text.strip()
-        # strip markdown fences if any
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown fences if any
         raw = re.sub(r"^```[a-z]*\n?", "", raw)
         raw = re.sub(r"\n?```$", "", raw)
         result = json.loads(raw)
@@ -351,7 +351,7 @@ async def web_search(query: str) -> dict:
 
 TOOL_REGISTRY = {
     "parse_email": {
-        "description": "Extract structured tasks from raw email text using Claude AI",
+        "description": "Extract structured tasks from raw email text using Groq (Llama 3.3 70B)",
         "input_schema": {"email_text": "str"},
         "execute": parse_email,
     },
